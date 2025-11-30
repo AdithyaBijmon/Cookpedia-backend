@@ -2,60 +2,85 @@ const users = require("../models/userModel")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
-exports.registerController = async(req,res)=>{
+exports.registerController = async (req, res) => {
     console.log("Inside register controller")
-    const {username,email,password} = req.body
+    const { username, email, password } = req.body
 
-    try{
+    try {
 
-        const existingUser = await users.findOne({email})
+        const existingUser = await users.findOne({ email })
 
-        if(existingUser){
+        if (existingUser) {
             res.status(409).json("User Already exist.")
         }
-        else{
-            const encryptPassword = await bcrypt.hash(password,10)
+        else {
+            const encryptPassword = await bcrypt.hash(password, 10)
             const newUser = new users({
-                username,email,password:encryptPassword,profile:""
+                username, email, password: encryptPassword, profile: ""
             })
             await newUser.save()
             res.status(200).json(newUser)
         }
 
     }
-    catch(err){
+    catch (err) {
         res.status(500).json(err)
     }
 }
 
-exports.loginController = async (req,res)=>{
+exports.loginController = async (req, res) => {
     console.log("Inside login controller")
 
-    const {email,password} = req.body
-    
-    try{
-        const existingUser = await users.findOne({email})
+    const { email, password } = req.body
 
-        if(existingUser){
-          let isUserLoggedIn = existingUser.role=="user"? await bcrypt.compare(password,existingUser.password) : password==existingUser.password 
-          
+    try {
+        const existingUser = await users.findOne({ email })
 
-          if(isUserLoggedIn){
-            const token = jwt.sign({email,role:existingUser.role},process.env.JWTSECRET)
-            res.status(200).json({user:existingUser,token})
-          }
-          else{
-            res.status(404).json("Invalid Password")
-          }
+        if (existingUser) {
+            let isUserLoggedIn = existingUser.role == "user" ? await bcrypt.compare(password, existingUser.password) : password == existingUser.password
+
+
+            if (isUserLoggedIn) {
+                const token = jwt.sign({ email, role: existingUser.role }, process.env.JWTSECRET)
+                res.status(200).json({ user: existingUser, token })
+            }
+            else {
+                res.status(404).json("Invalid Password")
+            }
 
 
         }
-        else{
+        else {
             res.status(404).json("Account does not exist.")
         }
 
     }
-    catch(err){
+    catch (err) {
+        res.status(500).json(err)
+    }
+
+}
+
+exports.updateUser = async (req, res) => {
+    console.log("Inside update user");
+    const { username, password, profile } = req.body
+    const { id } = req.params
+
+    try {
+        const existingUser = await users.findById({ _id: id })
+        existingUser.username = username
+        existingUser.profile = profile
+
+        if (password != "") {
+            const encryptPassword = await bcrypt.hash(password, 10)
+            existingUser.password = encryptPassword
+        }
+
+        await existingUser.save()
+        res.status(200).json(existingUser)
+
+    }
+    catch (err) {
         res.status(500).json(err)
     }
 
